@@ -1,4 +1,6 @@
-﻿using System;
+﻿using GPS.Common;
+using ICSharpCode.SharpZipLib.GZip;
+using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
@@ -11,6 +13,7 @@ namespace GPS.Console
     public class XowaParser
     {
         private const string CoreSuffix = "-core.xowa";
+        private const string HtmlSearchTermSuffix = "-html-ns*xowa";
 
         private string inputFolder;
         private string wikiName;
@@ -80,6 +83,53 @@ namespace GPS.Console
             System.Console.WriteLine($"Read {pageIndices.Count} unique page indices.");
 
             return pageIndices;
+        }
+
+        public List<string> GetHtmlDbFileNames()
+            => Directory.GetFiles(this.inputFolder, $"{this.wikiName}{XowaParser.HtmlSearchTermSuffix}", SearchOption.TopDirectoryOnly).ToList();
+
+        public WikiPageList ReadHtmlDbFile(string filename, Dictionary<Int64, PageIndex> pageIndices)
+        {
+            string sql = "SELECT page_id, body FROM html";
+
+            WikiPageList pages = new WikiPageList();
+            System.Console.WriteLine($"Reading HTML files from {Path.GetFileName(filename)}...");
+            XowaParser.ExecuteSql(filename, sql, (reader) =>
+            {
+                Int64 pageId = (Int64)reader["page_id"];
+                byte[] body = (byte[])reader["body"];
+
+                WikiPage page = new WikiPage()
+                {
+                    Id = pageId
+                };
+
+                // Decode body (GZip'd data)
+                using (MemoryStream stream = new MemoryStream(body))
+                using (GZipInputStream gzipStream = new GZipInputStream(stream))
+                using (StreamReader streamReader = new StreamReader(gzipStream))
+                {
+                    page.Content = streamReader.ReadToEnd();
+                }
+
+                // Associated and save
+                PageIndex idx = null;
+                if (pageIndices.TryGetValue(pageId, out idx))
+                {
+                    page.PrimaryTitle = idx.PrimaryTitle;
+                    page.SecondaryTitles = idx.SecondaryTitles;
+                    pages.ValidPages.Add(page);
+                }
+                else
+                {
+                    page.PrimaryTitle = "<Unknown>";
+                    page.SecondaryTitles = new List<string>();
+                    pages.InvalidPages.Add(page);
+                }
+            });
+
+            System.Console.WriteLine($"Read {pages.ValidPages.Count} total valid pages and {pages.InvalidPages.Count} invalid pages.");
+            return pages;
         }
 
         public static void ExecuteSql(string fileName, string sql, Action<SQLiteDataReader> readAction)
