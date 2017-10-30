@@ -132,6 +132,46 @@ namespace GPS.Console
             return pages;
         }
 
+        /// <summary>
+        /// TODO: Deduplicate
+        /// </summary>
+        public CompressedWikiPageList ReadCompressedHtmlDbFile(string filename, Dictionary<Int64, PageIndex> pageIndices)
+        {
+            string sql = "SELECT page_id, body FROM html";
+
+            CompressedWikiPageList pages = new CompressedWikiPageList();
+            System.Console.WriteLine($"Reading HTML files from {Path.GetFileName(filename)}...");
+            XowaParser.ExecuteSql(filename, sql, (reader) =>
+            {
+                Int64 pageId = (Int64)reader["page_id"];
+                byte[] body = (byte[])reader["body"];
+
+                CompressedWikiPage page = new CompressedWikiPage()
+                {
+                    Id = pageId,
+                    Content = body
+                };
+
+                // Associated and save
+                PageIndex idx = null;
+                if (pageIndices.TryGetValue(pageId, out idx))
+                {
+                    page.PrimaryTitle = idx.PrimaryTitle;
+                    page.SecondaryTitles = idx.SecondaryTitles;
+                    pages.ValidPages.Add(page);
+                }
+                else
+                {
+                    page.PrimaryTitle = "<Unknown>";
+                    page.SecondaryTitles = new List<string>();
+                    pages.InvalidPages.Add(page);
+                }
+            });
+
+            System.Console.WriteLine($"Read {pages.ValidPages.Count} total valid pages and {pages.InvalidPages.Count} invalid pages.");
+            return pages;
+        }
+
         public static void ExecuteSql(string fileName, string sql, Action<SQLiteDataReader> readAction)
         {
             using (SQLiteConnection conn = new SQLiteConnection($"Data Source={fileName};Version=3;"))

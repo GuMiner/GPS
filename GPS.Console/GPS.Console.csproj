@@ -66,6 +66,7 @@
     <Compile Include="PageIndex.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="CompressedWikiPageList.cs" />
     <Compile Include="WikiPageList.cs" />
     <Compile Include="XowaParser.cs" />
   </ItemGroup>

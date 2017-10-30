@@ -5,7 +5,7 @@ using ProtoBuf;
 namespace GPS.Common
 {
     [ProtoContract]
-    public class WikiPage
+    public class CompressedWikiPage
     {
         [ProtoMember(1)]
         public Int64 Id { get; set; }
@@ -17,6 +17,6 @@ namespace GPS.Common
         public List<string> SecondaryTitles { get; set; }
 
         [ProtoMember(4)]
-        public string Content { get; set; }
+        public byte[] Content { get; set; }
     }
 }

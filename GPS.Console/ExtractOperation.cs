@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace GPS.Console
 {
@@ -19,9 +20,18 @@ namespace GPS.Console
 
         [Option('o', "output", Required = true, HelpText = "Directory that will contain the output of the conversion")]
         public string OutputFolder { get; set; }
-        
+
+        [Option('c', "compress", Required = true, HelpText = "If set, the default compression is mirrored to the output (gzip)")]
+        public bool Compress { get; set; } = false;
+
         internal int Extract()
         {
+            if (this.Compress)
+            {
+                System.Console.WriteLine("Skipping compression...");
+                Thread.Sleep(1000);
+            }
+
             XowaParser parser = new XowaParser(this.InputFolder);
             Dictionary<Int64, PageIndex> pageIndices = this.GetPageIndices(parser);
 
@@ -30,23 +40,48 @@ namespace GPS.Console
             foreach (string file in htmlFiles)
             {
                 // We output a series of files to avoid (a) too many small files (b) too large of a single file.
-                WikiPageList pages = parser.ReadHtmlDbFile(file, pageIndices);
+                if (this.Compress)
+                {
+                    CompressedWikiPageList pages = parser.ReadCompressedHtmlDbFile(file, pageIndices);
 
-                using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"html-{fileIdx}.protobin")))
-                {
-                    Serializer.Serialize(stream, pages.ValidPages);
-                }
-
-                string invalidFolder = Path.Combine(this.OutputFolder, "invalid");
-                if (!Directory.Exists(invalidFolder) && pages.InvalidPages.Any())
-                {
-                    Directory.CreateDirectory(invalidFolder);
-                }
-                else if (pages.InvalidPages.Any())
-                {
-                    using (FileStream stream = File.Create(Path.Combine(invalidFolder, $"html-invalid-{fileIdx}.protobin")))
+                    using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"html-{fileIdx}.protobin")))
                     {
-                        Serializer.Serialize(stream, pages.InvalidPages);
+                        Serializer.Serialize(stream, pages.ValidPages);
+                    }
+
+                    string invalidFolder = Path.Combine(this.OutputFolder, "invalid");
+                    if (!Directory.Exists(invalidFolder) && pages.InvalidPages.Any())
+                    {
+                        Directory.CreateDirectory(invalidFolder);
+                    }
+                    else if (pages.InvalidPages.Any())
+                    {
+                        using (FileStream stream = File.Create(Path.Combine(invalidFolder, $"html-invalid-{fileIdx}.protobin")))
+                        {
+                            Serializer.Serialize(stream, pages.InvalidPages);
+                        }
+                    }
+                }
+                else
+                {
+                    WikiPageList pages = parser.ReadHtmlDbFile(file, pageIndices);
+
+                    using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"html-{fileIdx}.protobin")))
+                    {
+                        Serializer.Serialize(stream, pages.ValidPages);
+                    }
+
+                    string invalidFolder = Path.Combine(this.OutputFolder, "invalid");
+                    if (!Directory.Exists(invalidFolder) && pages.InvalidPages.Any())
+                    {
+                        Directory.CreateDirectory(invalidFolder);
+                    }
+                    else if (pages.InvalidPages.Any())
+                    {
+                        using (FileStream stream = File.Create(Path.Combine(invalidFolder, $"html-invalid-{fileIdx}.protobin")))
+                        {
+                            Serializer.Serialize(stream, pages.InvalidPages);
+                        }
                     }
                 }
 
