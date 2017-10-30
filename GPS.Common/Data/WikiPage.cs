@@ -11,7 +11,7 @@ namespace GPS.Common
     public class WikiPage
     {
         [ProtoMember(1)]
-        public Int32 Id { get; set; }
+        public Int64 Id { get; set; }
 
         [ProtoMember(2)]
         public string PrimaryTitle { get; set; }

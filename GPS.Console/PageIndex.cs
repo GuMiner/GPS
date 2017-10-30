@@ -8,7 +8,7 @@ namespace GPS.Console
     public class PageIndex
     {
         [ProtoMember(1)]
-        public Int32 Id { get; set; }
+        public Int64 Id { get; set; }
 
         [ProtoMember(2)]
         public string PrimaryTitle { get; set; }
