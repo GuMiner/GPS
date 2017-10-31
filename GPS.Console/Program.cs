@@ -6,9 +6,10 @@ namespace GPS.Console
     {
         static int Main(string[] args)
         {
-            ParserResult<ExtractOperation> operation = Parser.Default.ParseArguments<ExtractOperation>(args);
+            ParserResult<object> operation = Parser.Default.ParseArguments<ExtractOperation, GenerateDictionaryOperation>(args);
             return operation.MapResult(
                 (ExtractOperation op) => op.Extract(),
+                (GenerateDictionaryOperation op) => op.Generate(),
                 _ => 1);
         }
     }
