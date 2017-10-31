@@ -3,6 +3,7 @@ using GPS.Common;
 using System.IO;
 using ICSharpCode.SharpZipLib.GZip;
 using HtmlAgilityPack;
+using System.Collections.Generic;
 
 namespace GPS.Console
 {
@@ -18,9 +19,10 @@ namespace GPS.Console
         internal void ProcessPage(WikiPage page)
         {
             // Extract the text out of the HTML page for processing.
-            doc.Load(page.Content);
+            doc.LoadHtml(page.Content);
 
-            System.Console.WriteLine(page.PrimaryTitle + " " + string.Join(";", page.SecondaryTitles));
+
+            System.Console.WriteLine(page.PrimaryTitle ?? "<Invalid Title>" + " " + string.Join(";", page.SecondaryTitles ?? new List<string>() { "<null>"}));
         }
 
         internal void ProcessPage(CompressedWikiPage page)

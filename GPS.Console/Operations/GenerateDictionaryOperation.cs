@@ -1,11 +1,9 @@
 ﻿using CommandLine;
 using GPS.Common;
 using ProtoBuf;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 
 namespace GPS.Console
 {
@@ -15,7 +13,7 @@ namespace GPS.Console
         [Option('i', "input", Required = false, HelpText = "Directories containing wikipedia XML files to scan, uncompressed")]
         public IEnumerable<string> InputFolders { get; set; } = new List<string>();
 
-        [Option('i', "input", Required = false, HelpText = "Directories containing wikipedia XML files to scan, compressed")]
+        [Option('c', "cinput", Required = false, HelpText = "Directories containing wikipedia XML files to scan, compressed")]
         public IEnumerable<string> CompressedInputFolders { get; set; } = new List<string>();
 
         [Option('o', "output", Required = true, HelpText = "Directory that will contain the dictionary files for later operations")]
