@@ -5,18 +5,26 @@ using ICSharpCode.SharpZipLib.GZip;
 using HtmlAgilityPack;
 using System.Collections.Generic;
 using System.Text;
+using System.Net;
 
 namespace GPS.Console
 {
     internal class DictionaryGenerator
     {
-        private HtmlDocument doc;
+        private object lockObject = new object();
 
         public DictionaryGenerator()
         {
-            doc = new HtmlDocument();
+            this.Dictionary = new WikiDictionary()
+            {
+                TitleMap = new Dictionary<long, string>(),
+                WordMap = new Dictionary<string, HashSet<long>>(StringComparer.InvariantCultureIgnoreCase),
+                WordFrequencies = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase)
+            };
         }
-        
+
+        public WikiDictionary Dictionary { get; private set; }
+
         internal void ProcessPage(CompressedWikiPage page)
         {
             using (MemoryStream stream = new MemoryStream(page.Content))
@@ -36,222 +44,139 @@ namespace GPS.Console
         internal void ProcessPage(WikiPage page)
         {
             // Extract the text out of the HTML page for processing.
+            HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(page.Content);
 
-            // Extracts links and text, HTML delimiters and punctuation included.
-            this.ExtractLinksAndText(doc.DocumentNode.InnerText,
-                (linkPrefix, linkParts) =>
+            // Extract a line of text with a control character
+            Dictionary<string, int> cleanWords = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+            this.ExtractBlocks(doc.DocumentNode.InnerText,
+                (blockId, word) =>
                 {
-                    System.Console.WriteLine(linkPrefix + " " + string.Join(" - ", linkParts));
-                },
-                (word) =>
-                {
-                    System.Console.WriteLine(word);
+                    string cleanWord = WebUtility.HtmlDecode(WebUtility.UrlDecode(word)).ToLowerInvariant();
+                    for (int i = 0; i < cleanWord.Length; i++)
+                    {
+                        // Skip if we don't consider this a valid word
+                        if (!this.IsCharValid(cleanWord[i]))
+                        {
+                            return;
+                        }
+                    }
+
+                    cleanWord = StripWellKnownPunctuation(cleanWord);
+                    if (!string.IsNullOrWhiteSpace(cleanWord))
+                    {
+                        int wordCount;
+                        if (!cleanWords.TryGetValue(cleanWord, out wordCount))
+                        {
+                            wordCount = 0;
+                            cleanWords.Add(cleanWord, wordCount);
+                        }
+
+                        cleanWords[cleanWord]++;
+                    }
                 });
 
-            System.Console.WriteLine(page.PrimaryTitle ?? "<Invalid Title>" + " " + string.Join(";", page.SecondaryTitles ?? new List<string>() { "<null>"}));
+            // Wait for all words to finish saving.
+            string compositeTitle = page.PrimaryTitle?.Replace('_', ' ') ?? "<Invalid Title>" + " " + string.Join(";", page.SecondaryTitles ?? new List<string>() { "<null>" });
+            this.SaveWord(page.Id, compositeTitle, cleanWords);
         }
 
-        public delegate TResult FuncWithOut<T1, T2, T3, TResult>(T1 obj, T2 obj2, out T3 obj3);
-
-        private void ExtractLinksAndText(string text, Action<string, List<string>> linkProcessor, Action<string> wordProcessor)
+        private void SaveWord(long pageId, string compositeTitle, Dictionary<string, int> cleanWords)
         {
-            List<string> skipPrefixes = new List<string>()
-                { "#T" }; // Media types that don't work well
-            List<string> singleBodyLinkPrefixes = new List<string>()
-                { "$a'", "$a1", "$e'", "%QA", "$!", "$%", "\"#", "\"$", "#*", "\"%", "#!", "\"&" };
-            List<string> dualBodyLinkPrefixes = new List<string>()
-                { "${$", "${*", "$\"", "$c'", "$b'", "$b\"", "$d1", "%Q1", "${'#", "%R4", "\".", "\"-",
-                  "$b1", "$b/", "$b)", "$d'", "$$", "$#", "#'", "$h'", "\"+", ")!", "$'", "\",", "$B", "&-#N", "&-#?", "&-\"g" };
-            List<string> tripleBodyLinkPrefixes = new List<string>()
-                { "${'$", "${'T", "${'d'", "%]5" };
-            List<string> tripleWithSuffixNewlineHandling = new List<string>()
-                { "&%", "&-#K" };
+            lock (lockObject)
+            {
+                this.Dictionary.TitleMap.Add(pageId, compositeTitle);
 
-            bool inWord = false;
+                foreach (KeyValuePair<string, int> cleanWord in cleanWords)
+                {
+                    HashSet<long> referenceList;
+                    if (!this.Dictionary.WordMap.TryGetValue(cleanWord.Key, out referenceList))
+                    {
+                        referenceList = new HashSet<long>();
+                        this.Dictionary.WordMap.Add(cleanWord.Key, referenceList);
+                    }
+
+                    referenceList.Add(pageId);
+
+                    int frequency;
+                    if (!this.Dictionary.WordFrequencies.TryGetValue(cleanWord.Key, out frequency))
+                    {
+                        frequency = 0;
+                        this.Dictionary.WordFrequencies.Add(cleanWord.Key, frequency);
+                    }
+
+                    this.Dictionary.WordFrequencies[cleanWord.Key] += cleanWord.Value;
+                }
+            }
+        }
+
+        private string StripWellKnownPunctuation(string word)
+        {
+            HashSet<char> wellKnownPunctuation = new HashSet<char>
+            {
+                ',', '.', ':', ';', '"', '(', ')', '?' // Notably, we allow ' and - and # but disallow "
+            };
+
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < word.Length; i++)
+            {
+                if (!wellKnownPunctuation.Contains(word[i]))
+                {
+                    builder.Append(word[i]);
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private bool IsCharValid(char c)
+        {
+            // We alreday have lowercased everyyhing
+            if ((c >= 48 && c <= 57) || (c >= 97 && c <= 122)) // a-z0-9
+            {
+                return true;
+            }
+
+            HashSet<char> validChars = new HashSet<char>()
+            {
+                ',', '.', ':', ';', '#','\'', '"', '(', ')', '-', '?' // Notably, we omit $
+            };
+
+            return validChars.Contains(c);
+        }
+        
+        private void ExtractBlocks(string text, Action<int, string> blockWordAction)
+        {
+            int blockId = 0;
             StringBuilder wordBuilder = new StringBuilder();
-
-            StringBuilder[] linkBuilders = new StringBuilder[] { new StringBuilder(), new StringBuilder(), new StringBuilder() };
-            string linkPrefix = null;
-            bool inLink = false;
-            int linkSize = -1;
-            bool considerNewlineToTerminateLink = false;
-
-            FuncWithOut<int, List<string>, string, bool> hasSubstring = (int idx, List<string> prefixes, out string prefix) =>
-            {
-                prefix = null;
-                foreach (string testPrefix in prefixes)
-                {
-                    bool isMatch = true;
-                    for (int i = 0; i < testPrefix.Length && isMatch; i++)
-                    {
-                        int textIdx = i + 1 + idx;
-                        if (textIdx < text.Length)
-                        {
-                            if (testPrefix[i] != text[textIdx])
-                            {
-                                // Character mismatch
-                                isMatch = false;
-                            }
-                        }
-                        else
-                        {
-                            // Can't match this prefix, it's OOB
-                            isMatch = false;
-                        }
-                    }
-
-                    if (isMatch)
-                    {
-                        prefix = testPrefix;
-                        return true;
-                    }
-                }
-
-                return false;
-            };
-
-            Func<int, int> handleLinkDelimiter = (int idx) =>
-            {
-                if (inLink)
-                {
-                    --linkSize;
-                    if (linkSize == 0)
-                    {
-                        inLink = false;
-                        considerNewlineToTerminateLink = false;
-                        List<string> linkParts = new List<string>();
-                        for (int i = linkBuilders.Length - 1; i >= 0; i--)
-                        {
-                            if (linkBuilders[i].Length != 0)
-                            {
-                                linkParts.Add(linkBuilders[i].ToString());
-                                linkBuilders[i].Clear();
-                            }
-                        }
-                        
-                        linkProcessor(linkPrefix, linkParts);
-                    }
-
-                    return idx;
-                }
-                else
-                {
-                    inLink = true;
-                    
-                    if (hasSubstring(idx, tripleWithSuffixNewlineHandling, out linkPrefix))
-                    {
-                        linkSize = 3;
-                        considerNewlineToTerminateLink = true; // Only applies to the last part of the triple.
-                    }
-                    else if(hasSubstring(idx, tripleBodyLinkPrefixes, out linkPrefix))
-                    {
-                        linkSize = 3;
-                    }
-                    else if (hasSubstring(idx, dualBodyLinkPrefixes, out linkPrefix))
-                    {
-                        linkSize = 2;
-                    }
-                    else if (hasSubstring(idx, singleBodyLinkPrefixes, out linkPrefix))
-                    {
-                        linkSize = 1;
-                    }
-                    else if (hasSubstring(idx, skipPrefixes, out linkPrefix))
-                    {
-                        linkSize = 0;
-                        inLink = false;
-                        linkPrefix = string.Empty;
-                    }
-                    else
-                    {
-                        System.Console.WriteLine($"Unknown prefix in text. Idx: {idx}. Text: {text.Substring(idx, 10)}");
-                        inLink = false;
-                        return idx;
-                    }
-
-                    return idx + linkPrefix.Length;
-                }
-            };
-
-            Action<char> continueOrStartWord = (char character) =>
-            {
-                if (inWord)
-                {
-                    // Continue new word
-                    wordBuilder.Append(character);
-                }
-                else
-                {
-                    if (inLink)
-                    {
-                        linkBuilders[linkSize - 1].Append(character);
-                    }
-                    else
-                    {
-                        // Start new word
-                        inWord = true;
-                        wordBuilder.Append(character);
-                    }
-                }
-            };
-
-            Action endWord = () =>
-            {
-                if (inWord)
-                {
-                    inWord = false;
-                    string word = wordBuilder.ToString();
-                    if (word.Length != 0)
-                    {
-                        wordProcessor(word);
-                    }
-
-                    wordBuilder.Clear();
-                }
-            };
-
-            Func<char,int, int> endWordOrContinueLink = (char character, int idx) =>
-            {
-                endWord();
-                if (inLink)
-                {
-                    if (considerNewlineToTerminateLink && linkSize == 1 && character == '\n')
-                    {
-                        return handleLinkDelimiter(idx);
-                    }
-                    else
-                    {
-                        linkBuilders[linkSize - 1].Append(character);
-                    }
-                }
-
-                return idx;
-            };
-
+            
             for (int i = 0; i < text.Length; i++)
             {
                 switch(text[i])
                 {
                     case '': // ESC.
-                        endWord();
-                        i = handleLinkDelimiter(i);
+                        if (wordBuilder.Length != 0)
+                        {
+                            blockWordAction(blockId, wordBuilder.ToString());
+                            wordBuilder.Clear();
+                        }
+
+                        ++blockId;
                         break;
                     case '\r':
                     case '\n':
                     case ' ':
                     case '\t':
-                        i = endWordOrContinueLink(text[i], i);
+                        if (wordBuilder.Length != 0)
+                        {
+                            blockWordAction(blockId, wordBuilder.ToString());
+                            wordBuilder.Clear();
+                        }
                         break;
                     default:
-                        continueOrStartWord(text[i]);
+                        wordBuilder.Append(text[i]);
                         break;
                 }
-            }
-
-            endWord();
-            while (inLink)
-            {
-                handleLinkDelimiter(text.Length);
             }
         }
     }

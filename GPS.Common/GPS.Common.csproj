@@ -65,6 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\CompressedWikiPage.cs" />
+    <Compile Include="Data\WikiDictionary.cs" />
     <Compile Include="Data\WikiPage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

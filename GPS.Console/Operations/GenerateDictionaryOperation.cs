@@ -4,6 +4,8 @@ using ProtoBuf;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GPS.Console
 {
@@ -38,15 +40,15 @@ namespace GPS.Console
 
                 System.Console.WriteLine($"Processing {pages.Count} wiki pages in {file}...");
                 int count = 0;
-                foreach (WikiPage page in pages)
+                Parallel.ForEach(pages, (page) =>
                 {
                     generator.ProcessPage(page);
-                    ++count;
-                    if (count % 10000 == 0)
+
+                    if (Interlocked.Increment(ref count) % 10 == 0)
                     {
-                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages.");
+                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages, for a total of {generator.Dictionary.WordMap.Count} distinct words.");
                     }
-                }
+                });
             }
 
             // TODO: Don't duplicate this in this manner.
@@ -62,15 +64,20 @@ namespace GPS.Console
 
                 System.Console.WriteLine($"Processing {pages.Count} wiki pages in {file}...");
                 int count = 0;
-                foreach (CompressedWikiPage page in pages)
+                Parallel.ForEach(pages, (page) =>
                 {
                     generator.ProcessPage(page);
-                    ++count;
-                    if (count % 10000 == 0)
+
+                    if (Interlocked.Increment(ref count) % 10 == 0)
                     {
-                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages.");
+                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages, for a total of {generator.Dictionary.WordMap.Count} distinct words.");
                     }
-                }
+                });
+            }
+
+            using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"quote_dictionary.protobin")))
+            {
+                Serializer.Serialize(stream, generator.Dictionary);
             }
 
             return 0;
