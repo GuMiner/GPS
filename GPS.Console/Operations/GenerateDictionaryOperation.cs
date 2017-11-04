@@ -63,6 +63,7 @@ namespace GPS.Console
 
             List<string> files = folders.Select(folder => Directory.GetFiles(folder, "html-*.protobin", SearchOption.AllDirectories)).SelectMany(list => list).ToList();
             System.Console.WriteLine($"Processing {files.Count} {type} wiki files...");
+            int fileCount = 0;
             foreach (string file in files)
             {
                 // Use a new generator for each file so we don't run out of memory
@@ -94,10 +95,11 @@ namespace GPS.Console
                 });
                 
                 System.Console.WriteLine("Saving...");
-                using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"dictionary-{count}-{type}.protobin")))
+                using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"dictionary-{fileCount}-{type}.protobin")))
                 {
                     Serializer.Serialize(stream, generator.Dictionary);
                 }
+                ++fileCount;
 
                 // Keep a running total of the maximum word count found.
                 System.Console.WriteLine("Aggregating top 1000...");
