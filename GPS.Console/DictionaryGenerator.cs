@@ -95,7 +95,7 @@ namespace GPS.Console
                         referenceList = new HashSet<long>();
                         this.Dictionary.WordMap.Add(cleanWord.Key, referenceList);
                     }
-
+                    
                     referenceList.Add(pageId);
 
                     int frequency;
