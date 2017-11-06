@@ -22,44 +22,46 @@ namespace GPS.Console
         [Option('o', "output", Required = true, HelpText = "Directory that will contain the dictionary files for later operations")]
         public string OutputFolder { get; set; }
 
+        [Option('w', "wordsOnly", Required = false, HelpText = "If set, only summarize words, not all word linkages.")]
+        public bool WordsOnly { get; set; } = false;
+
         /// <summary>
         /// Runs the generation process.
         /// </summary>
         internal int Generate()
         {
+            System.Console.WriteLine($"Word-only summarization: {this.WordsOnly}");
             Dictionary<string, int> maxWordsFlat = GeneratePerFileDictionaries<WikiPage>(this.InputFolders, "flat", (page, generator) => generator.ProcessPage(page));
             Dictionary<string, int> maxWordsCompressed = GeneratePerFileDictionaries<CompressedWikiPage>(this.CompressedInputFolders, "compressed", (page, generator) => generator.ProcessPage(page));
 
-            // Combine results.
+            // Combine results so we can see how our outputs were.
             foreach (KeyValuePair<string, int> word in maxWordsFlat)
             {
                 this.MergeWithDictionary(word, maxWordsCompressed);
             }
-
-
-            System.Console.WriteLine("Summary...");
-            System.Console.Write(string.Join(Environment.NewLine, maxWordsCompressed.OrderByDescending(item => item.Value).Select(item => $"{item.Key}: {item.Value}")));
+            
+            System.Console.WriteLine("Summary (Top 200)...");
+            System.Console.Write(string.Join(Environment.NewLine, maxWordsCompressed.OrderByDescending(item => item.Value).Take(200).Select(item => $"{item.Key}: {item.Value}")));
             System.Console.Write("Done");
 
             return 0;
         }
 
-        private void MergeWithDictionary(KeyValuePair<string, int> word, Dictionary<string, int> maxWordsCompressed)
+        private void MergeWithDictionary(KeyValuePair<string, int> word, Dictionary<string, int> summaryDictionary)
         {
             int dictionaryCount;
-            if (!maxWordsCompressed.TryGetValue(word.Key, out dictionaryCount))
+            if (!summaryDictionary.TryGetValue(word.Key, out dictionaryCount))
             {
                 dictionaryCount = 0;
-                maxWordsCompressed.Add(word.Key, dictionaryCount);
+                summaryDictionary.Add(word.Key, dictionaryCount);
             }
 
-            maxWordsCompressed[word.Key] += word.Value;
+            summaryDictionary[word.Key] += word.Value;
         }
 
         private Dictionary<string, int> GeneratePerFileDictionaries<T>(IEnumerable<string> folders, string type, Action<T, DictionaryGenerator> pageProcessAction)
         {
             Dictionary<string, int> maxWords = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            
 
             List<string> files = folders.Select(folder => Directory.GetFiles(folder, "html-*.protobin", SearchOption.AllDirectories)).SelectMany(list => list).ToList();
             System.Console.WriteLine($"Processing {files.Count} {type} wiki files...");
@@ -67,7 +69,7 @@ namespace GPS.Console
             foreach (string file in files)
             {
                 // Use a new generator for each file so we don't run out of memory
-                DictionaryGenerator generator = new DictionaryGenerator();
+                DictionaryGenerator generator = new DictionaryGenerator(this.WordsOnly);
 
                 List<T> pages;
                 using (FileStream stream = File.OpenRead(file))
@@ -90,14 +92,21 @@ namespace GPS.Console
 
                     if (Interlocked.Increment(ref count) % 1000 == 0)
                     {
-                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages, for a total of {generator.Dictionary.WordMap.Count} distinct words.");
+                        System.Console.WriteLine($"  Processed {count} of {pages.Count} pages, for a total of {generator.Dictionary.WordFrequencies.Count} distinct words.");
                     }
                 });
                 
                 System.Console.WriteLine("Saving...");
                 using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"dictionary-{fileCount}-{type}.protobin")))
                 {
-                    Serializer.Serialize(stream, generator.Dictionary);
+                    if (this.WordsOnly)
+                    {
+                        Serializer.Serialize(stream, generator.Dictionary.WordFrequencies);
+                    }
+                    else
+                    {
+                        Serializer.Serialize(stream, generator.Dictionary);
+                    }
                 }
                 ++fileCount;
 

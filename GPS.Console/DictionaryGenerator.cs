@@ -12,9 +12,11 @@ namespace GPS.Console
     internal class DictionaryGenerator
     {
         private object lockObject = new object();
+        private readonly bool wordFrequenciesOnly;
 
-        public DictionaryGenerator()
+        public DictionaryGenerator(bool wordFrequenciesOnly)
         {
+            this.wordFrequenciesOnly = wordFrequenciesOnly;
             this.Dictionary = new WikiDictionary()
             {
                 TitleMap = new Dictionary<long, string>(),
@@ -53,7 +55,7 @@ namespace GPS.Console
                 (blockId, word) =>
                 {
                     string cleanWord = WebUtility.HtmlDecode(WebUtility.UrlDecode(word)).ToLowerInvariant();
-                    for (int i = 0; i < cleanWord.Length; i++)
+                    for (int i = 0; i < cleanWord.Length && !this.wordFrequenciesOnly; i++) // We perform no filtering if word frequencies are all we want as we want *all* words
                     {
                         // Skip if we don't consider this a valid word
                         if (!this.IsCharValid(cleanWord[i]))
@@ -85,18 +87,24 @@ namespace GPS.Console
         {
             lock (lockObject)
             {
-                this.Dictionary.TitleMap.Add(pageId, compositeTitle);
+                if (!this.wordFrequenciesOnly)
+                {
+                    this.Dictionary.TitleMap.Add(pageId, compositeTitle);
+                }
 
                 foreach (KeyValuePair<string, int> cleanWord in cleanWords)
                 {
-                    HashSet<long> referenceList;
-                    if (!this.Dictionary.WordMap.TryGetValue(cleanWord.Key, out referenceList))
+                    if (!this.wordFrequenciesOnly)
                     {
-                        referenceList = new HashSet<long>();
-                        this.Dictionary.WordMap.Add(cleanWord.Key, referenceList);
+                        HashSet<long> referenceList;
+                        if (!this.Dictionary.WordMap.TryGetValue(cleanWord.Key, out referenceList))
+                        {
+                            referenceList = new HashSet<long>();
+                            this.Dictionary.WordMap.Add(cleanWord.Key, referenceList);
+                        }
+
+                        referenceList.Add(pageId);
                     }
-                    
-                    referenceList.Add(pageId);
 
                     int frequency;
                     if (!this.Dictionary.WordFrequencies.TryGetValue(cleanWord.Key, out frequency))
@@ -112,6 +120,12 @@ namespace GPS.Console
 
         private string StripWellKnownPunctuation(string word)
         {
+            // We perform no punctuation changes if we're getting word frequencies only -- we'll do it with postprocessing elsewhere.
+            if (this.wordFrequenciesOnly)
+            {
+                return word;
+            }
+
             HashSet<char> wellKnownPunctuation = new HashSet<char>
             {
                 ',', '.', ':', ';', '"', '(', ')', '?' // Notably, we allow ' and - and # but disallow "
@@ -131,7 +145,7 @@ namespace GPS.Console
 
         private bool IsCharValid(char c)
         {
-            // We alreday have lowercased everyyhing
+            // We already have lowercased everyyhing
             if ((c >= 48 && c <= 57) || (c >= 97 && c <= 122)) // a-z0-9
             {
                 return true;
