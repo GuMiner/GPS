@@ -23,7 +23,7 @@ namespace GPS.Console
         public string OutputFolder { get; set; }
 
         [Option('w', "wordsOnly", Required = false, HelpText = "If set, only summarize words, not all word linkages.")]
-        public bool WordsOnly { get; set; } = false;
+        public string WordsOnly { get; set; } = "false";
 
         /// <summary>
         /// Runs the generation process.
@@ -69,7 +69,7 @@ namespace GPS.Console
             foreach (string file in files)
             {
                 // Use a new generator for each file so we don't run out of memory
-                DictionaryGenerator generator = new DictionaryGenerator(this.WordsOnly);
+                DictionaryGenerator generator = new DictionaryGenerator(bool.Parse(this.WordsOnly));
 
                 List<T> pages;
                 using (FileStream stream = File.OpenRead(file))
@@ -99,7 +99,7 @@ namespace GPS.Console
                 System.Console.WriteLine("Saving...");
                 using (FileStream stream = File.Create(Path.Combine(this.OutputFolder, $"dictionary-{fileCount}-{type}.protobin")))
                 {
-                    if (this.WordsOnly)
+                    if (bool.Parse(this.WordsOnly))
                     {
                         Serializer.Serialize(stream, generator.Dictionary.WordFrequencies);
                     }
