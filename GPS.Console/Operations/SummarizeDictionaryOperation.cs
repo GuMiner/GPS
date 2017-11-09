@@ -25,14 +25,15 @@ namespace GPS.Console
             foreach (string file in files)
             {
                 System.Console.WriteLine($"Reading {Path.GetFileName(file)}...");
-                WikiDictionary dictionary;
+                Dictionary<string, int> dictionary;
                 using (FileStream stream = File.OpenRead(file))
                 {
-                    dictionary = Serializer.Deserialize<WikiDictionary>(stream);
+                    dictionary = Serializer.Deserialize<Dictionary<string, int>>(stream);
                 }
 
-                System.Console.WriteLine($"Processing {dictionary.WordFrequencies.Count} unique words in {Path.GetFileName(file)}...");
-                foreach (KeyValuePair<string, int> wordFrequency in dictionary.WordFrequencies)
+                // Due to running a non-compiled 
+                System.Console.WriteLine($"Processing {dictionary.Count} unique words in {Path.GetFileName(file)}...");
+                foreach (KeyValuePair<string, int> wordFrequency in dictionary)
                 {
                     this.MergeWithDictionary(wordFrequency, mergedDictionary);
                 }
