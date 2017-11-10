@@ -20,34 +20,35 @@ namespace GPS.Console
         internal int Generate()
         {
             System.Console.WriteLine($"Minimum frequency for words: {this.MinFrequency}");
-
+            
             Dictionary<string, int> dictionary;
             System.Console.WriteLine($"Reading {Path.GetFileName(this.InputFile)}...");
             using (FileStream stream = File.OpenRead(this.InputFile))
             {
                 dictionary = Serializer.Deserialize<Dictionary<string, int>>(stream);
             }
-
+            
             System.Console.WriteLine($"Read in {dictionary.Count} items.");
             TreeDictionary tree = new TreeDictionary() { RootNodes = new List<TreeNode>() };
-
+            
             System.Console.WriteLine($"Converting to tree structure...");
             int edgeCount = 0;
             while (dictionary.Keys.Count > 0)
             {
                 KeyValuePair<string, int> item = dictionary.First();
                 edgeCount += TreeGenerator.AddWord(tree, item.Key, item.Value);
-
+            
                 dictionary.Remove(item.Key);
-
+            
                 if (dictionary.Count % 10000 == 0)
                 {
                     System.Console.WriteLine($"  {dictionary.Count} items remaining, {edgeCount} edges added to the tree.");
                 }
             }
-
+            
             System.Console.WriteLine($"Pruning tree...");
-            TreeGenerator.Prune(this.MinFrequency);
+            int nodesPruned = TreeGenerator.Prune(tree, this.MinFrequency);
+            System.Console.WriteLine($"Pruned {nodesPruned} from the tree.");
 
             string outputFilename = Path.Combine(Path.GetDirectoryName(this.InputFile), "tree-dictionary.protobuf");
             System.Console.WriteLine($"Saving {outputFilename}...");

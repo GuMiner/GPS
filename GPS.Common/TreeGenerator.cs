@@ -9,6 +9,8 @@ namespace GPS.Common
     /// </summary>
     public class TreeGenerator
     {
+        public static readonly TreeNodeComparer TreeNodeComparer = new TreeNodeComparer();
+
         /// <summary>
         /// Adds a new word to the dictionary.
         /// </summary>
@@ -23,7 +25,7 @@ namespace GPS.Common
             int edgesAdded = 0;
 
             TreeNode characterNode = new TreeNode() { Character = word[characterIndex] };
-            int idx = nodes.BinarySearch(characterNode);
+            int idx = nodes.BinarySearch(characterNode, TreeGenerator.TreeNodeComparer);
             if (idx < 0)
             {
                 // The index is the bitwise complement of the next largest item. Convert that to a location, as we want to add this value *at* that location.
@@ -31,6 +33,7 @@ namespace GPS.Common
                 idx = ~idx;
 
                 characterNode.Count = occurrences;
+                characterNode.TerminationCount = 0;
                 characterNode.Children = new List<TreeNode>();
                 nodes.Insert(idx, characterNode);
                 edgesAdded++;
@@ -42,13 +45,41 @@ namespace GPS.Common
                 // Recurse down, adding nodes (each node which adds a single edge) as necessary.
                 edgesAdded += TreeGenerator.AddWord(nodes[idx].Children, characterIndex, word, occurrences);
             }
+            else
+            {
+                // This is a terminating word. There should only be a single word that adds to TerminationCount, but just in case...
+                characterNode.TerminationCount += occurrences;
+            }
 
             return edgesAdded;
         }
 
-        public static void Prune(int minFrequency)
+        /// <summary>
+        /// Prunes the dictionary of words strings occurring with too minimum a frequency.
+        /// </summary>
+        /// <returns>The number of edges / nodes pruned</returns>
+        public static int Prune(TreeDictionary dictionary, int minFrequency)
         {
-            throw new NotImplementedException();
+            return TreeGenerator.Prune(dictionary.RootNodes, minFrequency);
+        }
+
+        private static int Prune(List<TreeNode> nodes, int minFrequency)
+        {
+            int nodesPruned = 0;
+            for (int i = nodes.Count; i >= 0; i++)
+            {
+                if (nodes[i].Count < minFrequency)
+                {
+                    nodes.RemoveAt(i);
+                    ++nodesPruned;
+                }
+                else
+                {
+                    nodesPruned += TreeGenerator.Prune(nodes[i].Children, minFrequency);
+                }
+            }
+
+            return nodesPruned;
         }
     }
 }
