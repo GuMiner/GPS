@@ -14,7 +14,7 @@ namespace GPS.Common.Data
     {
         public int Compare(TreeNode x, TreeNode y)
         {
-            return x.Character.CompareTo(y);
+            return x.Character.CompareTo(y.Character);
         }
     }
 }
