@@ -9,8 +9,8 @@ using System.Threading;
 
 namespace GPS.Console
 {
-    [Verb("extract", HelpText = "Extracts XOWA wikipedia pages into protobuf WikiPage format.")]
-    public class ExtractOperation
+    [Verb("extractWikiDb", HelpText = "Extracts XOWA wikipedia pages into protobuf WikiPage format.")]
+    public class ExtractWikiDbOperation
     {
         [Option('i', "input", Required = true, HelpText = "Directory containing XOWA files to convert")]
         public string InputFolder { get; set; }

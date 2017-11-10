@@ -10,7 +10,7 @@ namespace GPS.Console
     [Verb("summarizeDictionaries", HelpText = "Summarizes dictionaries, generating an easy-to-search lists of words and frequencies.")]
     public class SummarizeDictionaryOperation
     {
-        [Option('i', "input", Required = false, HelpText = "Directories containing wikipedia XML files to scan, uncompressed")]
+        [Option('i', "input", Required = true, HelpText = "Directories containing wikipedia XML files to scan, uncompressed")]
         public IEnumerable<string> InputFolders { get; set; } = new List<string>();
 
         /// <summary>
@@ -30,8 +30,8 @@ namespace GPS.Console
                 {
                     dictionary = Serializer.Deserialize<Dictionary<string, int>>(stream);
                 }
-
-                // Due to running a non-compiled 
+                
+                // This could be parallelized, but nearly all the time is spent on I/O as the resulting dictionary is near 32 GiB deserializaed.
                 System.Console.WriteLine($"Processing {dictionary.Count} unique words in {Path.GetFileName(file)}...");
                 foreach (KeyValuePair<string, int> wordFrequency in dictionary)
                 {

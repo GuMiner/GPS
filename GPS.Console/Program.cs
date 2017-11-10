@@ -6,12 +6,14 @@ namespace GPS.Console
     {
         static int Main(string[] args)
         {
-            ParserResult<object> operation = Parser.Default.ParseArguments<ExtractOperation, GenerateDictionaryOperation, QueryDictionaryOperation, SummarizeDictionaryOperation>(args);
+            ParserResult<object> operation = Parser.Default
+                .ParseArguments<ExtractWikiDbOperation, GenerateDictionaryOperation, QueryDictionaryOperation, SummarizeDictionaryOperation, GenerateTreeOperation>(args);
             return operation.MapResult(
-                (ExtractOperation op) => op.Extract(),
+                (ExtractWikiDbOperation op) => op.Extract(),
                 (GenerateDictionaryOperation op) => op.Generate(),
                 (QueryDictionaryOperation op) => op.Query(),
                 (SummarizeDictionaryOperation op) => op.Summarize(),
+                (GenerateTreeOperation op) => op.Generate(),
                 _ => 1);
         }
     }
