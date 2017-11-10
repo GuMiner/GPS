@@ -53,33 +53,5 @@ namespace GPS.Common
 
             return edgesAdded;
         }
-
-        /// <summary>
-        /// Prunes the dictionary of words strings occurring with too minimum a frequency.
-        /// </summary>
-        /// <returns>The number of edges / nodes pruned</returns>
-        public static int Prune(TreeDictionary dictionary, int minFrequency)
-        {
-            return TreeGenerator.Prune(dictionary.RootNodes, minFrequency);
-        }
-
-        private static int Prune(List<TreeNode> nodes, int minFrequency)
-        {
-            int nodesPruned = 0;
-            for (int i = nodes.Count; i >= 0; i++)
-            {
-                if (nodes[i].Count < minFrequency)
-                {
-                    nodes.RemoveAt(i);
-                    ++nodesPruned;
-                }
-                else
-                {
-                    nodesPruned += TreeGenerator.Prune(nodes[i].Children, minFrequency);
-                }
-            }
-
-            return nodesPruned;
-        }
     }
 }

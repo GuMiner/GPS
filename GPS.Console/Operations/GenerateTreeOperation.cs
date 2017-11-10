@@ -33,10 +33,14 @@ namespace GPS.Console
             
             System.Console.WriteLine($"Converting to tree structure...");
             int edgeCount = 0;
+            int nodesPruned = 0;
             while (dictionary.Keys.Count > 0)
             {
                 KeyValuePair<string, int> item = dictionary.First();
-                edgeCount += TreeGenerator.AddWord(tree, item.Key, item.Value);
+                if (item.Value >= this.MinFrequency)
+                {
+                    edgeCount += TreeGenerator.AddWord(tree, item.Key, item.Value);
+                }
             
                 dictionary.Remove(item.Key);
             
@@ -45,9 +49,7 @@ namespace GPS.Console
                     System.Console.WriteLine($"  {dictionary.Count} items remaining, {edgeCount} edges added to the tree.");
                 }
             }
-            
-            System.Console.WriteLine($"Pruning tree...");
-            int nodesPruned = TreeGenerator.Prune(tree, this.MinFrequency);
+
             System.Console.WriteLine($"Pruned {nodesPruned} from the tree.");
 
             string outputFilename = Path.Combine(Path.GetDirectoryName(this.InputFile), "tree-dictionary.protobuf");
