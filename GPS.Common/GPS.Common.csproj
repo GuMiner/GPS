@@ -65,14 +65,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\CompressedWikiPage.cs" />
-    <Compile Include="Data\TreeNode.cs" />
-    <Compile Include="TreeNodeComparer.cs" />
-    <Compile Include="Data\TreeDictionary.cs" />
     <Compile Include="Data\WikiDictionary.cs" />
     <Compile Include="Data\WikiPage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TreeGenerator.cs" />
-    <Compile Include="TreeSearcher.cs" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

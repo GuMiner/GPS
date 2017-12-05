@@ -7,13 +7,13 @@ namespace GPS.Console
         static int Main(string[] args)
         {
             ParserResult<object> operation = Parser.Default
-                .ParseArguments<ExtractWikiDbOperation, GenerateDictionaryOperation, QueryDictionaryOperation, SummarizeDictionaryOperation, GenerateTreeOperation>(args);
+                .ParseArguments<ExtractWikiDbOperation, GenerateDictionaryOperation, QueryDictionaryOperation, SummarizeDictionaryOperation, CleanDictionaryOperation>(args);
             return operation.MapResult(
                 (ExtractWikiDbOperation op) => op.Extract(),
                 (GenerateDictionaryOperation op) => op.Generate(),
                 (QueryDictionaryOperation op) => op.Query(),
                 (SummarizeDictionaryOperation op) => op.Summarize(),
-                (GenerateTreeOperation op) => op.Generate(),
+                (CleanDictionaryOperation op) => op.Clean(),
                 _ => 1);
         }
     }

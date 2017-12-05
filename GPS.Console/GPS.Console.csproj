@@ -88,7 +88,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DictionaryGenerator.cs" />
-    <Compile Include="Operations\GenerateTreeOperation.cs" />
+    <Compile Include="Operations\CleanDictionaryOperation.cs" />
     <Compile Include="Operations\SummarizeDictionaryOperation.cs" />
     <Compile Include="Operations\QueryDictionaryOperation.cs" />
     <Compile Include="Operations\GenerateDictionaryOperation.cs" />
