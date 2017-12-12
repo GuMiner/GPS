@@ -1,0 +1,9 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="GPS.UI.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="DictionaryPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\Users\Gustave\Desktop\Data Archive\wikipedia_protobuf\dictionary\wiki\cleanDictionary.protobin</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
